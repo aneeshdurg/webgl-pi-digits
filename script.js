@@ -99,7 +99,7 @@ const bufferArrays = {
 };
 
 var gl = null;
-async function main(canvas, n) {
+async function main(canvas, n, root) {
     console.time("Initial setup");
     await loadTwgl();
 
@@ -113,7 +113,7 @@ async function main(canvas, n) {
     console.log(gl);
     enableGlExts(gl);
 
-    const fragShader = await getFile("./compute.frag.c");
+    const fragShader = await getFile(root + "/compute.frag.c");
 
     const programInfo = twgl.createProgramInfo(gl, [vs, fragShader]);
 
