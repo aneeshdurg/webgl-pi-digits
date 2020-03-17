@@ -28,9 +28,9 @@ float modularExponent16(int b, float m) {
     // for (; b >= 4; b -= 4)
     //      res = mod(m4 * res, m);
 
-    // float m2 = mod(256.0, m);
-    // for (; b >= 2; b -= 2)
-    //      res = mod(m2 * res, m);
+     // float m2 = mod(256.0, m);
+     // for (; b >= 2; b -= 2)
+     //      res = mod(m2 * res, m);
 
     for (; b > 0; b -= 1)
          res = mod(16.0 * res, m);

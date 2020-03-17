@@ -1,7 +1,16 @@
 <head>
     <script src="script.js" type="text/javascript"></script>
     <script type="text/javascript">
-        document.addEventListener('DOMContentLoaded', main);
+        async function compute_and_display_pi() {
+            // const canvas = document.createElement("canvas");
+            const canvas = document.getElementById("glcanvas");
+            const n = parseInt(location.search.substring(1)) || 0;
+            let nth = await main(canvas, n);
+            document.getElementById("results").innerText =
+                "The " + n + "th hex digit of pi is " + nth;
+        }
+
+        document.addEventListener('DOMContentLoaded', compute_and_display_pi);
     </script>
 </head>
 <body>

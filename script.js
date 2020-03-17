@@ -99,18 +99,14 @@ const bufferArrays = {
 };
 
 var gl = null;
-async function main() {
+async function main(canvas, n) {
     console.time("Initial setup");
     await loadTwgl();
 
-    const n = parseInt(location.search.substring(1)) || 1600;
-
-    const sqrt_n = Math.ceil(Math.sqrt(n));
+    const sqrt_n = Math.max(Math.ceil(Math.sqrt(n)), 1);
     const dimensions = [sqrt_n, sqrt_n];
     console.log("params", n, sqrt_n, dimensions);
 
-    // const gl = document.createElement("canvas").getContext("webgl2");
-    const canvas = document.getElementById("glcanvas");
     canvas.width = dimensions[0];
     canvas.height = dimensions[1];
     gl = canvas.getContext("webgl2");
@@ -146,13 +142,10 @@ async function main() {
     console.timeEnd("Compute");
 
     console.time("Extract");
-    {
-        let dstData = new Float32Array(canvas.width * canvas.height * 4);
-        gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.FLOAT, dstData);
-        console.log(dstData);
-    }
+    let dstData = new Float32Array(canvas.width * canvas.height * 4);
+    gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.FLOAT, dstData);
+    console.log(dstData);
     console.timeEnd("Extract");
-    console.log(gl);
 
     console.time("Render");
     // render to screen because it looks cool
@@ -160,41 +153,43 @@ async function main() {
     render(gl);
     console.timeEnd("Render");
 
-    const sumShader = await getFile("./sum.frag.c");
-    const sumProgramInfo = twgl.createProgramInfo(gl, [vs, sumShader]);
-    setupProgram(gl, sumProgramInfo, bufferInfo);
+    //const sumShader = await getFile("./sum.frag.c");
+    //const sumProgramInfo = twgl.createProgramInfo(gl, [vs, sumShader]);
+    //setupProgram(gl, sumProgramInfo, bufferInfo);
 
 
-    gl.activeTexture(gl.TEXTURE1);
-    const sumDst = createTexture(gl, [canvas.width, canvas.height], null);
-    const dstBuffer = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, dstBuffer);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, sumDst, 0 /* level */);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, dstBuffer);
+    //gl.activeTexture(gl.TEXTURE1);
+    //const sumDst = createTexture(gl, [canvas.width, canvas.height], null);
+    //const dstBuffer = gl.createFramebuffer();
+    //gl.bindFramebuffer(gl.FRAMEBUFFER, dstBuffer);
+    //gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, sumDst, 0 /* level */);
+    //gl.bindFramebuffer(gl.FRAMEBUFFER, dstBuffer);
 
-    let scale = canvas.width;
-    console.log(canvas.width);
-    //while (canvas.width > 64) {
-        canvas.width /= scale;
-        canvas.height /= scale;
-        console.log("Iterating", canvas.width);
+    let scale = 1;
+    //console.log(canvas.width);
+    //canvas.width /= scale;
+    //canvas.height /= scale;
+    //console.log("Iterating", canvas.width);
 
-        twgl.setUniforms(sumProgramInfo, {
-            u_src_width: canvas.width,
-            u_x_scale: scale,
-            u_y_scale: scale,
-            u_src_data: computeDst,
-        });
+    //twgl.setUniforms(sumProgramInfo, {
+    //    u_src_width: canvas.width,
+    //    u_x_scale: scale,
+    //    u_y_scale: scale,
+    //    u_src_data: computeDst,
+    //});
 
-        render(gl);
-    //}
+    //console.time("Sum pixels GPU");
+    //render(gl);
+    //gl.finish();
+    //console.timeEnd("Sum pixels GPU");
 
-    console.log("Reading results");
-    // pull out the result
-    let dstData = new Float32Array(canvas.width * canvas.height * 4);
-    gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.FLOAT, dstData);
-    console.log(dstData);
+    //console.log("Reading results");
+    //// pull out the result
+    //let dstData = new Float32Array(canvas.width * canvas.height * 4);
+    //gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.FLOAT, dstData);
+    //console.log(dstData);
 
+    console.time("Sum pixels CPU");
     let sum = 0.0;
 
     for (let i = 0; i < (canvas.width * canvas.height); i++) {
@@ -206,10 +201,17 @@ async function main() {
     }
 
     console.log(sum);
+    console.timeEnd("Sum pixels CPU");
     sum -= Math.floor(sum);
     sum *= 16;
     let nth = Math.floor(sum);
+    if (nth >= 10)
+        nth = String.fromCharCode(65 + nth - 10);
+    else
+        nth = String(nth);
     console.log(n, nth);
 
-    document.getElementById("results").innerText = "The " + n + "th hex digit of pi is " + nth;
+    canvas.width = dimensions[0];
+    canvas.height = dimensions[1];
+    return nth;
 }
