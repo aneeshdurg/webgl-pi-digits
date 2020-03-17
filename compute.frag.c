@@ -72,46 +72,26 @@ void main() {
     float b_const =  eightk + 5.0;
     float a_const =  eightk + 6.0;
 
-    // if (n > k) {
-    //     // r === 4 * 16^(n-k) mod (8k + 1)/(8k + 1)
-    //     // g === 2 * 16^(n-k) mod (8k + 4)/(8k + 4)
-    //     // b === 16^(n-k) mod (8k + 5)/(8k + 5)
-    //     // a === 16^(n-k) mod (8k + 6)/(8k + 6)
-    //     // color_out = vec4(
-    //     //     modularExponent(16.0, n - k, r_const) / r_const,
-    //     //     modularExponent(16.0, n - k, b_const) / b_const,
-    //     //     modularExponent(16.0, n - k, g_const) / g_const,
-    //     //     modularExponent(16.0, n - k, a_const) / a_const);
-    //     // float place_shift = pow(16.0, float(n - k));
-    //     color_out = vec4(
-    //         modularExponent(16.0, n - k, r_const) / r_const,
-    //         modularExponent(16.0, n - k, g_const) / g_const,
-    //         modularExponent(16.0, n - k, b_const) / b_const,
-    //         modularExponent(16.0, n - k, a_const) / a_const);
+    if (n > k) {
+        // r === 4 * 16^(n-k) mod (8k + 1)/(8k + 1)
+        // g === 2 * 16^(n-k) mod (8k + 4)/(8k + 4)
+        // b === 16^(n-k) mod (8k + 5)/(8k + 5)
+        // a === 16^(n-k) mod (8k + 6)/(8k + 6)
+        color_out = vec4(
+            modularExponent16(n - k, r_const) / r_const,
+            modularExponent16(n - k, g_const) / g_const,
+            modularExponent16(n - k, b_const) / b_const,
+            modularExponent16(n - k, a_const) / a_const);
 
-    // } else {
-    //     // We have no choice but to compute the power here:
-    //     float place_shift = pow(16.0, float(n - k));
+    } else {
+        // We have no choice but to compute the power here:
+        float place_shift = pow(16.0, float(n - k));
 
-    //     // r === 1/(16^(k-n) * (8k + 1))
-    //     // g === 1/(16^(k-n) * (8k + 4))
-    //     // b === 1/(16^(k-n) * (8k + 5))
-    //     // a === 1/(16^(k-n) * (8k + 6))
-    //     color_out = place_shift * vec4(
-    //         1.0 / r_const, 1.0 / b_const, 1.0 / g_const, 1.0 / a_const);
-    // }
-
-    // color_out = vec4(1.0, 0.5, 1.0, 1.0);
-    // gl_FragColor = color_out;
-    //
-    float place_shift = pow(16.0, float(n - k));
-    color_out =
-        isGEq(n, k) * vec4(
-             modularExponent16(n - k, r_const) / r_const,
-             modularExponent16(n - k, g_const) / g_const,
-             modularExponent16(n - k, b_const) / b_const,
-             modularExponent16(n - k, a_const) / a_const) +
-        (1.0 - isGEq(n, k)) * place_shift * vec4(
+        // r === 1/(16^(k-n) * (8k + 1))
+        // g === 1/(16^(k-n) * (8k + 4))
+        // b === 1/(16^(k-n) * (8k + 5))
+        // a === 1/(16^(k-n) * (8k + 6))
+        color_out = place_shift * vec4(
             1.0 / r_const, 1.0 / b_const, 1.0 / g_const, 1.0 / a_const);
-
+    }
 }

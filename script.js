@@ -104,7 +104,7 @@ async function main(canvas, n, root) {
     await loadTwgl();
 
     const sqrt_n = Math.max(Math.ceil(Math.sqrt(n)), 1);
-    const dimensions = [sqrt_n, sqrt_n];
+    const dimensions = [sqrt_n + 1, sqrt_n + 1];
     console.log("params", n, sqrt_n, dimensions);
 
     canvas.width = dimensions[0];
