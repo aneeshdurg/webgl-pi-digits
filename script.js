@@ -100,6 +100,8 @@ const bufferArrays = {
 
 var gl = null;
 async function main(canvas, n, root) {
+    console.time("main");
+
     console.time("Initial setup");
     await loadTwgl();
 
@@ -109,7 +111,7 @@ async function main(canvas, n, root) {
 
     canvas.width = dimensions[0];
     canvas.height = dimensions[1];
-    gl = canvas.getContext("webgl2");
+    gl = canvas.getContext("webgl2", {premultipliedAlpha: false});
     console.log(gl);
     enableGlExts(gl);
 
@@ -123,8 +125,10 @@ async function main(canvas, n, root) {
     const computeDst = createTexture(gl, dimensions, null);
 
     twgl.setUniforms(programInfo, {
-      u_src_width: canvas.width,
-      u_n: n,
+        u_src_width: canvas.width,
+        u_n: n,
+        u_texture: 1,
+        u_use_texture: 0,
     });
 
     // render with computeDst
@@ -144,13 +148,17 @@ async function main(canvas, n, root) {
     console.time("Extract");
     let dstData = new Float32Array(canvas.width * canvas.height * 4);
     gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.FLOAT, dstData);
-    console.log(dstData);
     console.timeEnd("Extract");
 
     console.time("Render");
     // render to screen because it looks cool
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    twgl.setUniforms(programInfo, {
+        u_texture: computeDst,
+        u_use_texture: 1,
+    });
     render(gl);
+    gl.finish()
     console.timeEnd("Render");
 
     //const sumShader = await getFile("./sum.frag.c");
@@ -199,9 +207,9 @@ async function main(canvas, n, root) {
         const a = dstData[i * 4 + 3] * scale * scale;
         sum += 4 * r - 2 * g - b - a;
     }
-
-    console.log(sum);
     console.timeEnd("Sum pixels CPU");
+    console.info("Computed sum to be", sum);
+
     sum -= Math.floor(sum);
     sum *= 16;
     let nth = Math.floor(sum);
@@ -209,9 +217,11 @@ async function main(canvas, n, root) {
         nth = String.fromCharCode(65 + nth - 10);
     else
         nth = String(nth);
-    console.log(n, nth);
+    console.info("Final results:", n, nth);
 
     canvas.width = dimensions[0];
     canvas.height = dimensions[1];
+
+    console.timeEnd("main");
     return nth;
 }

@@ -9,6 +9,8 @@ precision mediump int;
 
 uniform int u_src_width;
 uniform int u_n;
+uniform int u_use_texture;
+uniform sampler2D u_texture;
 
 out vec4 color_out;
 
@@ -24,13 +26,28 @@ float modularExponent16(int b, float m) {
     float res = 1.0;
     int i = 0;
 
-    // float m4 = mod(65536.0, m);
-    // for (; b >= 4; b -= 4)
-    //      res = mod(m4 * res, m);
+    for (; b >= 8; b -= 8) {
+         res = mod(16.0 * res, m);
+         res = mod(16.0 * res, m);
+         res = mod(16.0 * res, m);
+         res = mod(16.0 * res, m);
+         res = mod(16.0 * res, m);
+         res = mod(16.0 * res, m);
+         res = mod(16.0 * res, m);
+         res = mod(16.0 * res, m);
+    }
 
-     // float m2 = mod(256.0, m);
-     // for (; b >= 2; b -= 2)
-     //      res = mod(m2 * res, m);
+    for (; b >= 4; b -= 4) {
+         res = mod(16.0 * res, m);
+         res = mod(16.0 * res, m);
+         res = mod(16.0 * res, m);
+         res = mod(16.0 * res, m);
+    }
+
+     for (; b >= 2; b -= 2) {
+         res = mod(16.0 * res, m);
+         res = mod(16.0 * res, m);
+     }
 
     for (; b > 0; b -= 1)
          res = mod(16.0 * res, m);
@@ -62,6 +79,11 @@ float isGEq(float a, float b) {
 }
 
 void main() {
+    if (u_use_texture == 1) {
+        color_out = texelFetch(u_texture, ivec2(gl_FragCoord.xy), 0);
+        return;
+    }
+
     int k = int(gl_FragCoord.y) * u_src_width + int(gl_FragCoord.x);
     int n = u_n;
     // Optimization when n > k, can compute in modulo arithmetic since we only
