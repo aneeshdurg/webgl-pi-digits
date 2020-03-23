@@ -10,7 +10,11 @@ async function loadTwgl() {
     return p;
 }
 
+_fileCache = {}
 async function getFile(url) {
+    if (url in _fileCache)
+        return _fileCache[url];
+
     const resp = await fetch(url);
     if (resp.status !== 200)
         throw("Could not find shader " + url);
@@ -26,6 +30,7 @@ async function getFile(url) {
             fileContents += String.fromCharCode.apply(null, fileBody.value);
         }
     }
+    _fileCache[url] = fileContents;
     return fileContents;
 }
 
@@ -77,6 +82,7 @@ function enableGlExts(gl) {
         throw new Error("!");
     }
 }
+
 const vs = `
     #version 300 es
     in vec4 position;
@@ -101,22 +107,20 @@ const bufferArrays = {
 var gl = null;
 async function main(canvas, n, root) {
     console.time("main");
-
     console.time("Initial setup");
     await loadTwgl();
 
     const sqrt_n = Math.max(Math.ceil(Math.sqrt(n)), 1);
     const dimensions = [sqrt_n + 1, sqrt_n + 1];
-    console.log("params", n, sqrt_n, dimensions);
 
     canvas.width = dimensions[0];
     canvas.height = dimensions[1];
     gl = canvas.getContext("webgl2", {premultipliedAlpha: false});
-    console.log(gl);
+    if (!gl)
+        throw new Error("Could not initialize webgl2 context! Does your browser support webgl2?");
     enableGlExts(gl);
 
     const fragShader = await getFile(root + "/compute.frag.c");
-
     const programInfo = twgl.createProgramInfo(gl, [vs, fragShader]);
 
     const bufferInfo = twgl.createBufferInfoFromArrays(gl, bufferArrays);
@@ -139,19 +143,12 @@ async function main(canvas, n, root) {
     console.timeEnd("Initial setup");
 
     console.time("Compute");
-
     render(gl);
     gl.finish();
-
     console.timeEnd("Compute");
 
-    console.time("Extract");
-    let dstData = new Float32Array(canvas.width * canvas.height * 4);
-    gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.FLOAT, dstData);
-    console.timeEnd("Extract");
-
-    console.time("Render");
     // render to screen because it looks cool
+    console.time("Render");
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     twgl.setUniforms(programInfo, {
         u_texture: computeDst,
@@ -161,54 +158,55 @@ async function main(canvas, n, root) {
     gl.finish()
     console.timeEnd("Render");
 
-    //const sumShader = await getFile("./sum.frag.c");
-    //const sumProgramInfo = twgl.createProgramInfo(gl, [vs, sumShader]);
-    //setupProgram(gl, sumProgramInfo, bufferInfo);
+    // Sum the results on the GPU
+    console.group("Sum time stats");
+    console.time("Sum pixels");
+    console.time("Setup GPU Sum pixels");
+    let scale = window.piCalcScale || 16;
+    const width = Math.ceil(canvas.width / scale);
+    const height = Math.ceil(canvas.height / scale);
+    gl.viewport(0, 0, width, height);
 
+    const sumShader = await getFile(root + "/sum.frag.c");
+    const sumProgramInfo = twgl.createProgramInfo(gl, [vs, sumShader]);
+    setupProgram(gl, sumProgramInfo, bufferInfo);
 
-    //gl.activeTexture(gl.TEXTURE1);
-    //const sumDst = createTexture(gl, [canvas.width, canvas.height], null);
-    //const dstBuffer = gl.createFramebuffer();
-    //gl.bindFramebuffer(gl.FRAMEBUFFER, dstBuffer);
-    //gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, sumDst, 0 /* level */);
-    //gl.bindFramebuffer(gl.FRAMEBUFFER, dstBuffer);
+    gl.activeTexture(gl.TEXTURE1);
+    const sumDst = createTexture(gl, [width, height], null);
+    const dstBuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, dstBuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, sumDst, 0 /* level */);
 
-    let scale = 1;
-    //console.log(canvas.width);
-    //canvas.width /= scale;
-    //canvas.height /= scale;
-    //console.log("Iterating", canvas.width);
+    twgl.setUniforms(sumProgramInfo, {
+        u_src_width: canvas.width,
+        u_src_height: canvas.height,
+        u_x_scale: scale,
+        u_y_scale: scale,
+        u_src_data: computeDst,
+    });
+    console.timeEnd("Setup GPU Sum pixels");
 
-    //twgl.setUniforms(sumProgramInfo, {
-    //    u_src_width: canvas.width,
-    //    u_x_scale: scale,
-    //    u_y_scale: scale,
-    //    u_src_data: computeDst,
-    //});
+    console.time("Sum GPU");
+    render(gl);
+    gl.finish();
+    console.timeEnd("Sum GPU");
 
-    //console.time("Sum pixels GPU");
-    //render(gl);
-    //gl.finish();
-    //console.timeEnd("Sum pixels GPU");
+    console.time("Read GPU result");
+    let sumData = new Float32Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.FLOAT, sumData);
+    console.timeEnd("Read GPU result");
 
-    //console.log("Reading results");
-    //// pull out the result
-    //let dstData = new Float32Array(canvas.width * canvas.height * 4);
-    //gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.FLOAT, dstData);
-    //console.log(dstData);
-
-    console.time("Sum pixels CPU");
+    console.time("Sum CPU");
     let sum = 0.0;
-
-    for (let i = 0; i < (canvas.width * canvas.height); i++) {
-        const r = dstData[i * 4 + 0] * scale * scale;
-        const g = dstData[i * 4 + 1] * scale * scale;
-        const b = dstData[i * 4 + 2] * scale * scale;
-        const a = dstData[i * 4 + 3] * scale * scale;
+    for (let i = 0; i < (sumData.length /  4); i++) {
+        const r = sumData[i * 4 + 0]  * scale * scale;
+        const g = sumData[i * 4 + 1]  * scale * scale;
+        const b = sumData[i * 4 + 2]  * scale * scale;
+        const a = sumData[i * 4 + 3]  * scale * scale;
         sum += 4 * r - 2 * g - b - a;
     }
-    console.timeEnd("Sum pixels CPU");
-    console.info("Computed sum to be", sum);
+    console.timeEnd("Sum CPU");
+    console.timeEnd("Sum pixels");
 
     sum -= Math.floor(sum);
     sum *= 16;
@@ -217,11 +215,9 @@ async function main(canvas, n, root) {
         nth = String.fromCharCode(65 + nth - 10);
     else
         nth = String(nth);
+    console.groupEnd("Sum time stats");
+
     console.info("Final results:", n, nth);
-
-    canvas.width = dimensions[0];
-    canvas.height = dimensions[1];
-
     console.timeEnd("main");
     return nth;
 }

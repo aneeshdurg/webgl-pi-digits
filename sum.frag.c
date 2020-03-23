@@ -7,9 +7,10 @@ precision mediump float;
 precision mediump int;
 #endif
 
-uniform float u_src_width;
 uniform sampler2D u_src_data;
 
+uniform int u_src_width;
+uniform int u_src_height;
 uniform int u_x_scale;
 uniform int u_y_scale;
 
@@ -27,7 +28,6 @@ out vec4 color_out;
 // TODO make sure that values above 1.0 are correctly handled
 
 void main() {
-    float k = gl_FragCoord.y * u_src_width + gl_FragCoord.x;
     vec4 color = vec4(0.0, 0.0, 0.0, 0.0);
 
     ivec2 src_coord = ivec2(
@@ -35,8 +35,12 @@ void main() {
 
     for (int x_i = 0; x_i < u_x_scale; x_i++) {
         for (int y_i = 0; y_i < u_y_scale; y_i++) {
-            vec4 texel = texelFetch(
-                u_src_data, ivec2(src_coord.x + x_i, src_coord.y + y_i), 0);
+            ivec2 texelCoords = ivec2(src_coord.x + x_i, src_coord.y + y_i);
+            vec4 texel;
+            if (texelCoords.x >= u_src_width || texelCoords.y >= u_src_height)
+                texel = vec4(0.0, 0.0, 0.0, 0.0);
+            else
+                texel = texelFetch(u_src_data, texelCoords, 0);
             color += texel / (float(u_x_scale) * float(u_y_scale));
         }
     }
